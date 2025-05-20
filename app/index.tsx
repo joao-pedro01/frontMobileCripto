@@ -11,7 +11,7 @@ export default function Login() {
   const router = useRouter();
 
   const handleLogin = () => {
-    axios.post('http://192.168.15.24:3000/api/usuarios', {
+    axios.post('http://192.168.56.1:3000/api/usuarios', {
       userName: usuario,
       password: senha
     }).then(function (response) {

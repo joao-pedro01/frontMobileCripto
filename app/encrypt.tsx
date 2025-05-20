@@ -10,55 +10,47 @@ import InputField from '../src/components/InputField';
 export default function Encrypt() {
   const [mensagem, setMensagem] = useState('');
   const [passo, setPasso] = useState('');
-  const [resultado, setResultado] = useState('');
+  const [resultado, setResultado] = useState<{ Hash: string; resultado: string } | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const router = useRouter();
 
-  const cifraDeCesar = (texto: string, deslocamento: number) => {
-    return texto
-      .split('')
-      .map((char) => {
-        if (/[a-zA-Z]/.test(char)) {
-          const base = char === char.toUpperCase() ? 65 : 97;
-          return String.fromCharCode(((char.charCodeAt(0) - base + deslocamento) % 26) + base);
-        }
-        return char;
-      })
-      .join('');
-  };
-
   const handleEncrypt = async () => {
     const deslocamento = parseInt(passo);
-    console.log(deslocamento)
     if (isNaN(deslocamento)) {
-      setResultado('');
+      setResultado(null);
       setModalVisible(true);
       return;
     }
 
-    
+    try {
+      const response = await axios.post('http://192.168.56.1:3000/api/criptografar', {
+        texto: mensagem,
+        deslocamento: deslocamento,
+      });
 
-    //const criptografada = cifraDeCesar(mensagem, deslocamento);
-    axios.post('http://192.168.15.24:3000/api/criptografar', {
-      texto: mensagem,
-      deslocamento: deslocamento
-    }).then(function (response) {
-      console.log(response.data.Hash)
-      Clipboard.setStringAsync(response.data.Hash);
-      setResultado(response.data.Hash);
+      const { Hash, resultado } = response.data;
+
+      setResultado({ Hash, resultado });
       setModalVisible(true);
-
-      console.log(response);
-    }).catch(function (error) {
-      alert(error.response.data.message);
+    } catch (error: any) {
+      alert(error?.response?.data?.message || 'Erro na criptografia');
       console.error(error);
-    });
+    }
   };
 
   const handleCopyAndRedirect = async () => {
-    await Clipboard.setStringAsync(resultado);
+    const hash = resultado?.Hash ?? '';
+    const mensagemCriptografada = resultado?.resultado ?? '';
+
+    await Clipboard.setStringAsync(`${hash}\n${mensagemCriptografada}`);
     setModalVisible(false);
-    router.push('/decrypt');
+    router.push({
+      pathname: '/decrypt',
+      params: {
+        hash,
+        mensagem: mensagemCriptografada,
+      },
+    });
   };
 
   return (
@@ -103,11 +95,18 @@ export default function Encrypt() {
                 : 'O passo deve ser um número válido.'}
             </Text>
 
-            {resultado !== '' && (
-              <TouchableOpacity style={styles.resultRow} onPress={handleCopyAndRedirect}>
-                <Text style={styles.resultCopy}>{resultado}</Text>
-                <Feather name="copy" size={20} color="#076921" />
-              </TouchableOpacity>
+            {resultado && (
+              <>
+                <TouchableOpacity style={styles.resultRow} onPress={handleCopyAndRedirect}>
+                  <Text style={styles.resultCopy}>{resultado.Hash}</Text>
+                  <Feather name="copy" size={20} color="#076921" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.resultRow} onPress={handleCopyAndRedirect}>
+                  <Text style={styles.resultCopy}>{resultado.resultado}</Text>
+                  <Feather name="copy" size={20} color="#076921" />
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
